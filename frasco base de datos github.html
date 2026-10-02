@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frasco de las Razones</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDKs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0d0d11;
+      --card-bg: rgba(255, 255, 255, 0.04);
+      --accent: #ff758c;
+      --accent-grad: linear-gradient(135deg, #ff758c, #ff7eb3);
+      --text: #f1f1f1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text); padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+
+    .container {
+      background: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 450px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    h2 { color: var(--accent); font-weight: 600; margin-bottom: 5px; }
+    p.subtitle { font-size: 0.85rem; color: #a0a0ab; margin-bottom: 20px; }
+
+    .jar-wrapper {
+      position: relative;
+      cursor: pointer;
+      margin: 15px auto;
+      width: 120px;
+      height: 160px;
+      transition: transform 0.2s;
+    }
+
+    .jar-wrapper:hover { transform: scale(1.05); }
+
+    .jar {
+      width: 100%;
+      height: 100%;
+      border: 4px solid rgba(255, 255, 255, 0.8);
+      border-radius: 15px 15px 40px 40px;
+      position: relative;
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.1);
+    }
+
+    .jar::before {
+      content: '';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      height: 12px;
+      border: 4px solid rgba(255, 255, 255, 0.8);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .note-paper {
+      background: #fff3c4;
+      color: #2c2c2c;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      font-family: 'Caveat', cursive;
+      font-size: 1.5rem;
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px 0;
+      transform: rotate(-1deg);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .btn {
+      background: var(--accent-grad);
+      border: none;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(255, 117, 140, 0.4);
+      transition: transform 0.2s;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .btn:hover { transform: scale(1.02); }
+
+    .add-section {
+      margin-top: 25px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 15px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 15px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .count { font-size: 0.75rem; color: #a0a0ab; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>✨ Nuestro Frasco de Razones</h2>
+    <p class="subtitle">Sincronizado en tiempo real</p>
+
+    <div class="jar-wrapper" onclick="getReason()">
+      <div class="jar"></div>
+    </div>
+
+    <div class="note-paper" id="noteDisplay">
+      Toca el frasco o el botón para sacar un papelito...
+    </div>
+
+    <button class="btn" onclick="getReason()">🔀 Sacar una Razón</button>
+
+    <div class="add-section">
+      <input type="text" id="newReasonInput" placeholder="Escribe una nueva razón para ella..." />
+      <button class="btn" style="background: rgba(255,255,255,0.1); box-shadow: none;" onclick="addReason()">✍️ Guardar en el Frasco</button>
+    </div>
+
+    <p class="count" id="totalCount">Cargando razones...</p>
+  </div>
+
+  <script>
+    // 1. TUS CREDENCIALES DE FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyDVu9TA9NeXOFRi5QNwPKfdsyFAX7b6Dt4",
+      authDomain: "notion-base.firebaseapp.com",
+      databaseURL: "https://notion-base-default-rtdb.firebaseio.com",
+      projectId: "notion-base",
+      storageBucket: "notion-base.firebasestorage.app",
+      messagingSenderId: "769797229935",
+      appId: "1:769797229935:web:5340b2359c6ef65708ac9a",
+      measurementId: "G-NC0NBL8EBD"
+    };
+
+    // 2. Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const reasonsRef = db.ref('reasons');
+
+    let currentReasons = [];
+
+    // 3. Escuchar la base de datos en tiempo real
+    reasonsRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        currentReasons = Object.values(data);
+      } else {
+        // Notas iniciales de bienvenida si la base de datos está vacía
+        const defaultReasons = [
+          "Tu sonrisa ilumina cualquier día pesado.",
+          "Amo la complicidad que tenemos en las cosas más simples.",
+          "Gracias por ser mi lugar seguro y mi mejor equipo."
+        ];
+        defaultReasons.forEach(r => reasonsRef.push(r));
+        currentReasons = defaultReasons;
+      }
+      document.getElementById('totalCount').innerText = `El frasco tiene ${currentReasons.length} papelitos dentro`;
+    });
+
+    // 4. Sacar una razón aleatoria
+    function getReason() {
+      if (currentReasons.length === 0) return;
+      const display = document.getElementById('noteDisplay');
+      display.style.opacity = '0';
+      setTimeout(() => {
+        const randomIndex = Math.floor(Math.random() * currentReasons.length);
+        display.innerText = `"${currentReasons[randomIndex]}"`;
+        display.style.opacity = '1';
+      }, 200);
+    }
+
+    // 5. Agregar nueva razón a la nube
+    function addReason() {
+      const input = document.getElementById('newReasonInput');
+      const text = input.value.trim();
+      if (text !== "") {
+        reasonsRef.push(text);
+        input.value = "";
+        alert("¡Nota guardada! Ya se sincronizó y tu pareja la podrá ver en su Notion.");
+      }
+    }
+  </script>
+</body>
+</html>
